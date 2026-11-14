@@ -12,7 +12,7 @@ import telebot
 TOKEN = os.environ.get('TELEGRAM_TOKEN', '9010306241:AAH49OSX-q6U1DLjTeDshgLCJrEWrEYExfs')
 
 # Кулдаун между карточками (1 час = 3600 секунд)
-COOLDOWN = 3600
+COOLDOWN = 14400
 
 # Время по МСК (ровно 1 минута: с 14:48 до 14:49)
 TIME_WINDOW_HOUR = 14
@@ -24,87 +24,86 @@ CODEWORDS = {"свинья", "свинота", "хряк", "жир"}
 
 # ==================== КАРТОЧКИ ====================
 cards_nothing = [
-    {"photo": "ID_1", "name": "Карточка 1", "rarity": "Ничего не стоит"},
-    {"photo": "ID_2", "name": "Карточка 2", "rarity": "Ничего не стоит"},
-    {"photo": "ID_3", "name": "Карточка 3", "rarity": "Ничего не стоит"},
-    {"photo": "ID_4", "name": "Карточка 4", "rarity": "Ничего не стоит"},
-    {"photo": "ID_5", "name": "Карточка 5", "rarity": "Ничего не стоит"},
-    {"photo": "ID_6", "name": "Карточка 6", "rarity": "Ничего не стоит"},
-    {"photo": "ID_7", "name": "Карточка 7", "rarity": "Ничего не стоит"},
-    {"photo": "ID_8", "name": "Карточка 8", "rarity": "Ничего не стоит"},
-    {"photo": "ID_9", "name": "Карточка 9", "rarity": "Ничего не стоит"},
-    {"photo": "ID_10", "name": "Карточка 10", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMCavjOkT35v2AoMbS23FY3YFDlg00AAmshaxt5CMlL6JsNIfTs94YBAAMCAAN5AAM9BA", "name": "Кабан обыкновенный жирный", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMEavjOmJsplG8HrkuTK0lMlQpCrhoAAmwhaxt5CMlL6hBVPmgtszQBAAMCAAN5AAM9BA", "name": "Милый кабанчик", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMGavjOnceIKo-spJU7ENVBBWcH_JwAAm0haxt5CMlL1rRC0ZsyLnABAAMCAAN5AAM9BA", "name": "Нестриженная свинья (стрижка в 6)", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMIavjOojiWvaZHfa2K_qML4MCsQdYAAm4haxt5CMlLtNpfcghLloABAAMCAAN5AAM9BA", "name": "Исхудавшая свинья не ела 3 минуты", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMKavjOp9Xnjo60_mAUhSVlC1j4FmIAAnIhaxt5CMlL7jdJ3SeAU8wBAAMCAAN4AAM9BA", "name": "Свиноматка обыкновенная", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMMavjOrjxg9vArNTFyUQ1_tNFraPMAAnUhaxt5CMlLfuaAf-5sfGUBAAMCAAN4AAM9BA", "name": "Базовый выводок", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMOavjOs8zcSKUj5BHzrwFleaQSwPoAAnYhaxt5CMlLyeIW1IRsxlEBAAMCAAN4AAM9BA", "name": "Негры свиноты", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMaavjOyRGbLwGsJs72VMi8waBAdfAAAnwhaxt5CMlLSXOCFt2iFFkBAAMCAAN4AAM9BA", "name": "Свинья и сладкий хлеб", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMkavjO29ImRfZnRePBnEVzWOHbT8sAAoEhaxt5CMlLHyK6o_TKGScBAAMCAAN4AAM9BA", "name": "Свин М.Джексон", "rarity": "Ничего не стоит"},
+    {"photo": "AgACAgIAAxkBAAMeavjO0c-YTB71lkkfA1F8WXwShr0AAn4haxt5CMlL8IdZvaAnAT0BAAMCAAN4AAM9BA", "name": "Культурная хрюшка", "rarity": "Ничего не стоит"},
 ]
 
 cards_common = [
-    {"photo": "ID_11", "name": "Карточка 11", "rarity": "Обычная"},
-    {"photo": "ID_12", "name": "Карточка 12", "rarity": "Обычная"},
-    {"photo": "ID_13", "name": "Карточка 13", "rarity": "Обычная"},
-    {"photo": "ID_14", "name": "Карточка 14", "rarity": "Обычная"},
-    {"photo": "ID_15", "name": "Карточка 15", "rarity": "Обычная"},
-    {"photo": "ID_16", "name": "Карточка 16", "rarity": "Обычная"},
-    {"photo": "ID_17", "name": "Карточка 17", "rarity": "Обычная"},
-    {"photo": "ID_18", "name": "Карточка 18", "rarity": "Обычная"},
-    {"photo": "ID_19", "name": "Карточка 19", "rarity": "Обычная"},
-    {"photo": "ID_20", "name": "Карточка 20", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMgavjO1bcDIGSiWO0TwMWSzoiGFL8AAn8haxt5CMlLhTvHqmT1AcYBAAMCAAN4AAM9BA", "name": "Ебаный ландрас", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMcavjOzX9PqIy-qOL0JHW5UQzKN58AAn0haxt5CMlLbJhjAAGL1RydAQADAgADeAADPQQ", "name": "Свинья с большим достоинством", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMYavjOxPr9xrvZLG_6t6n_pAAB6K-BAAJ7IWsbeQjJS-PMPDBncPVmAQADAgADeAADPQQ", "name": "Свиньи эне эне завтракают", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMWavjOwc6J5AIBQfGsOzDMiXYFLyoAAnohaxt5CMlLL5k8YAEi0ggBAAMCAAN4AAM9BA", "name": "Свиньи эне эне", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMQavjOt9xKQ5mcavzuBqJLEzskVssAAnchaxt5CMlLLoAd6ALi7JcBAAMCAAN4AAM9BA", "name": "Милый поросёнок", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMSavjOukPhHblsthFFlaSif2cTTWIAAnghaxt5CMlL1z5YPLf6njABAAMCAAN4AAM9BA", "name": "Свиньи ищут мины в Боснии", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMUavjOvuIcttjlcUTIXFIxOGiOvLQAAnkhaxt5CMlLa3RZHgHg0jEBAAMCAAN4AAM9BA", "name": "Пять бутылок водки", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMmavjO3yJULY0QcdDq4xM1I31ROXMAAoIhaxt5CMlL1a2rM88anF0BAAMCAAN4AAM9BA", "name": "Украинская степная", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMoavjO4_Lgous1QJl-G85_gDmTSkYAAoMhaxt5CMlLzux53J21gbUBAAMCAAN4AAM9BA", "name": "Свиноматка до изнасилования", "rarity": "Обычная"},
+    {"photo": "AgACAgIAAxkBAAMqavjO5uSkWe7f73ow8yMajra3uEsAAoQhaxt5CMlLH9Rji0UNjv0BAAMCAAN4AAM9BA", "name": "Бибизян и свин дружат", "rarity": "Обычная"},
 ]
 
 cards_unusual = [
-    {"photo": "ID_21", "name": "Карточка 21", "rarity": "Необычная"},
-    {"photo": "ID_22", "name": "Карточка 22", "rarity": "Необычная"},
-    {"photo": "ID_23", "name": "Карточка 23", "rarity": "Необычная"},
-    {"photo": "ID_24", "name": "Карточка 24", "rarity": "Необычная"},
-    {"photo": "ID_25", "name": "Карточка 25", "rarity": "Необычная"},
-    {"photo": "ID_26", "name": "Карточка 26", "rarity": "Необычная"},
-    {"photo": "ID_27", "name": "Карточка 27", "rarity": "Необычная"},
-    {"photo": "ID_28", "name": "Карточка 28", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAMsavjO6tOwTsdpIDAeoo4LxQfwPkUAAoUhaxt5CMlLzja90czcWvoBAAMCAAN4AAM9BA", "name": "Бибизян на свине", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAMuavjO7gLbo4HALLTMWGHB-gjYPZYAAoYhaxt5CMlLW8mLJAWP7q4BAAMCAAN4AAM9BA", "name": "Бибизян на кабане", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAM2avjO_BCn14F7QpfJxWZBimMsFWAAAoohaxt5CMlL7-A2OZkEbn4BAAMCAAN4AAM9BA", "name": "Очередь в газовую камеру", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAM4avjO_nRTZjXkksOEX1HooBfOhkEAAoshaxt5CMlLGey1g3RpRXEBAAMCAAN4AAM9BA", "name": "По факту админ и свин", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAM6avjPAYmaozjfzt-8sUdy6lYb4zkAAowhaxt5CMlLJkUfcqbdigMBAAMCAAN4AAM9BA", "name": "Ландрасы ебутся", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAM8avjPBKzjxhhEvCTbXIvxn_AQQNIAAo0haxt5CMlLacqXYQgfZm0BAAMCAAN4AAM9BA", "name": "Жирные белые свиньи ебутся", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAM0avjO-GISAx5C-r-h1k1NDI4lDzMAAokhaxt5CMlLgl-9mcKiFEgBAAMCAAN4AAM9BA", "name": "свиноматка 200", "rarity": "Необычная"},
+    {"photo": "AgACAgIAAxkBAAMyavjO9Xs8Xxxyl7EtFZf2NI_GtB4AAoghaxt5CMlL9mH81-nxqJgBAAMCAAN4AAM9BA", "name": "БИБИЗЯН АДМИН ЖЕЛАЕТ ВСЕМ МИРА", "rarity": "Необычная"},
 ]
 
 cards_heroic = [
-    {"photo": "ID_29", "name": "Карточка 29", "rarity": "Героизм"},
-    {"photo": "ID_30", "name": "Карточка 30", "rarity": "Героизм"},
-    {"photo": "ID_31", "name": "Карточка 31", "rarity": "Героизм"},
-    {"photo": "ID_32", "name": "Карточка 32", "rarity": "Героизм"},
-    {"photo": "ID_33", "name": "Карточка 33", "rarity": "Героизм"},
-    {"photo": "ID_34", "name": "Карточка 34", "rarity": "Героизм"},
-    {"photo": "ID_35", "name": "Карточка 35", "rarity": "Героизм"},
-    {"photo": "ID_36", "name": "Карточка 36", "rarity": "Героизм"},
-    {"photo": "ID_37", "name": "Карточка 37", "rarity": "Героизм"},
-    {"photo": "ID_38", "name": "Карточка 38", "rarity": "Героизм"},
-    {"photo": "ID_39", "name": "Карточка 39", "rarity": "Героизм"},
-    {"photo": "ID_40", "name": "Карточка 40", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAAMwavjO8ZrRJtSh__E0TLo3GeeOkCoAAochaxt5CMlLac4ztm0nTTwBAAMCAAN4AAM9BA", "name": "Админ и свин", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAAN8avjTRKLFqAQGCVDCDWXTi2uiwNsAArYhaxt5CMlLJP4q6H6W64gBAAMCAAN5AAM9BA", "name": "Аватарка бота", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANAavjQWANzQWXDPycZgvrMChNpzFoAApQhaxt5CMlL26TUxpctcN0BAAMCAAN5AAM9BA", "name": "Украïньский стэповiй свiн", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAAM-avjPCIbd9072br_A9YRxU41ALUgAAo4haxt5CMlLt2NsveiWQmMBAAMCAAN3AAM9BA", "name": "Дырочка свиная", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANWavjRJSeiEw0BBw07PmYWHY9ciMEAAp8haxt5CMlLRVzHBDKNZTEBAAMCAAN5AAM9BA", "name": "Я моггаю?", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANUavjQ-Y4HaEd3V9x5srr0puvkbegAAp4haxt5CMlLiRmuUh7lhkgBAAMCAAN4AAM9BA", "name": "Тайный гость", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANeavjR3hSEE4XBBBU7hZ8STZ15tUkAAqQhaxt5CMlLrq_qckKywJ4BAAMCAAN4AAM9BA", "name": "Админ тупой и ничего придумать сам не может?", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANwavjSka2AyTyb_hcm99jTjm7dWs4AAq0haxt5CMlL5LC4aVmtXQUBAAMCAAN5AAM9BA", "name": "Ваня и ...", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANyavjSptwyby7SbaQQNKOb96OHBacAAq8haxt5CMlLVAdN6T45u_oBAAMCAAN5AAM9BA", "name": "... и Балтика", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANqavjSSP9EFH6FV2iW9sSh0DglXpAAAqohaxt5CMlLC4t_0L3tSgwBAAMCAAN5AAM9BA", "name": "Ваня фюрер", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANsavjSYAj84t5y6XhQj9ms51G8X7MAAqshaxt5CMlLaycxPNzJAqEBAAMCAAN5AAM9BA", "name": "Странность", "rarity": "Героизм"},
+    {"photo": "AgACAgIAAxkBAANuavjSeSov6NSfLBOoyg14LneVeAEAAqwhaxt5CMlLJ7z1Ul_K6WEBAAMCAAN5AAM9BA", "name": "Сажает лёгкие", "rarity": "Героизм"},
 ]
 
 cards_legendary = [
-    {"photo": "ID_41", "name": "Карточка 41", "rarity": "Легендарная"},
-    {"photo": "ID_42", "name": "Карточка 42", "rarity": "Легендарная"},
-    {"photo": "ID_43", "name": "Карточка 43", "rarity": "Легендарная"},
-    {"photo": "ID_44", "name": "Карточка 44", "rarity": "Легендарная"},
-    {"photo": "ID_45", "name": "Карточка 45", "rarity": "Легендарная"},
-    {"photo": "ID_46", "name": "Карточка 46", "rarity": "Легендарная"},
-    {"photo": "ID_47", "name": "Карточка 47", "rarity": "Легендарная"},
-    {"photo": "ID_48", "name": "Карточка 48", "rarity": "Легендарная"},
-    {"photo": "ID_49", "name": "Карточка 49", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAAMiavjO2PbsSVO0XBv-dERzqWMfzNgAAoAhaxt5CMlLd3pByCqHzFsBAAMCAAN4AAM9BA", "name": "Некая тётя Н.", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAANEavjQd2mOrjtdqggsDfXFAoXWG1AAApYhaxt5CMlLsjMXEe38Vy0BAAMCAAN5AAM9BA", "name": "Воцап", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAANCavjQapK-gtzjlkXo4o3pi7R0QRYAApUhaxt5CMlLGtmjHnAEYyABAAMCAAN5AAM9BA", "name": "Свин на хате", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAAN2avjS1PtCC-cBlAbHflmyoqM8p3MAArIhaxt5CMlLqOTN9fM_C-kBAAMCAAN5AAM9BA", "name": "С квасом", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAAN0avjSwk2Z6cQa1wABQvnI9uw9i3hrAAKwIWsbeQjJS6jjjuXCWcsiAQADAgADeQADPQQ", "name": "Цундере танец", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAAN6avjS7-tEr19OT74FG0yr91wfNIMAArUhaxt5CMlLYyXEaPZUb7gBAAMCAAN3AAM9BA", "name": "Ищет парня", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAANiavjR_67xI1kdnQrlu3P-23QS0MEAAqYhaxt5CMlL8QIwNlIMgb0BAAMCAAN3AAM9BA", "name": "Бомжа ебучая", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAANkavjSD8dfQqskbsXE-Ue35oTX9e8AAqchaxt5CMlLsqzt2nZPLtgBAAMCAAN5AAM9BA", "name": "I love gay porn", "rarity": "Легендарная"},
+    {"photo": "AgACAgIAAxkBAANmavjSG8F6_40v7yvI3bzfZbUoOg4AAqghaxt5CMlL1SvqZClJ1FoBAAMCAAN3AAM9BA", "name": "Свин не считает себя свином", "rarity": "Легендарная"},
 ]
 
 cards_impossible = [
-    {"photo": "ID_50", "name": "Карточка 50", "rarity": "Невозможно"},
-    {"photo": "ID_51", "name": "Карточка 51", "rarity": "Невозможно"},
-    {"photo": "ID_52", "name": "Карточка 52", "rarity": "Невозможно"},
-    {"photo": "ID_53", "name": "Карточка 53", "rarity": "Невозможно"},
-    {"photo": "ID_54", "name": "Карточка 54", "rarity": "Невозможно"},
-    {"photo": "ID_55", "name": "Карточка 55", "rarity": "Невозможно"},
-    {"photo": "ID_56", "name": "Карточка 56", "rarity": "Невозможно"},
-    {"photo": "ID_57", "name": "Карточка 57", "rarity": "Невозможно"},
-    {"photo": "ID_58", "name": "Карточка 58", "rarity": "Невозможно"},
-    {"photo": "ID_59", "name": "Карточка 59", "rarity": "Невозможно"},
-    {"photo": "ID_60", "name": "Карточка 60", "rarity": "Невозможно"},
-    {"photo": "ID_61", "name": "Карточка 61", "rarity": "Невозможно"},
-    {"photo": "ID_62", "name": "Карточка 62", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAAN4avjS4GsX7ZLriQipGhDP5NZyPUkAArQhaxt5CMlLbxr-EmkbsDwBAAMCAAN3AAM9BA", "name": "За что мой дед воровал?", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANoavjSI527BtiF3QG1KNGpc1wfSNIAAqkhaxt5CMlLVKf3Wgf1afYBAAMCAAN3AAM9BA", "name": "Син шьюхи", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANaavjRjFoHjZEGSJNFegU4yYqa_kYAAqIhaxt5CMlL2v240F2UUV4BAAMCAAN4AAM9BA", "name": "Lite версия", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANYavjRX3FrE5_lxBNmgsYc57e8Z_sAAqEhaxt5CMlL1QM1ILs5xcsBAAMCAAN3AAM9BA", "name": "Зельц из свиней", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANOavjQsniUFXlopBF21aFb2POq8wMAApshaxt5CMlL9u7QysHgMXYBAAMCAAN3AAM9BA", "name": "Нормальный мальчик", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANQavjQuZUBCn0UKlatj_PQKIsE29AAApwhaxt5CMlLRh-fofqDAQwBAAMCAAN5AAM9BA", "name": "Свинота", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANSavjQxTGtk0Hjp5hPwmI74Pne_KkAAp0haxt5CMlLG8IXDgkWP0IBAAMCAAN5AAM9BA", "name": "Это кто нахуй?", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANgavjR772Xpia8MMBSNkF7q2HsYdoAAqUhaxt5CMlL8S2acKanOCgBAAMCAAN5AAM9BA", "name": "Смешно шо пэзда", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANIavjQmVB0yK-ftQX38qEAAfwPAqubAAKYIWsbeQjJS4WsgmRL9PkwAQADAgADdwADPQQ", "name": "Питушачьи корни", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANGavjQkWJ-Vcw24peWDmPrwHErlSAAApchaxt5CMlL27i_0ybcBQkBAAMCAAN3AAM9BA", "name": "Свинья небритая+нестриженная (добрый)", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANKavjQoCkx3rFsEg80Jy3Tzk3zcXIAApkhaxt5CMlL7hb_-f9eFAsBAAMCAAN4AAM9BA", "name": "Добрый Ваня немного свин", "rarity": "Невозможно"},
+    {"photo": "AgACAgIAAxkBAANMavjQpfELBxbh6vrEgjoyF70Xb1oAApohaxt5CMlLj8T3PcKn_AsBAAMCAAN5AAM9BA", "name": "Депутат", "rarity": "Невозможно"},
 ]
 
 # Особая карточка по времени (14:48 МСК)
-TIME_CARD = {"photo": "ID_TIME", "name": "Особая по времени", "rarity": "Секретная"}
+TIME_CARD = {"photo": "AgACAgIAAxkBAANcavjRnfWN8rpI8i9gXtBf2pm7jowAAqMhaxt5CMlLUKlcBbpadbgBAAMCAAN4AAM9BA", "name": "Самая редкая карточка в мире (посхалко)", "rarity": "Секретная"}
 
 # ==================== БОТ И БД ====================
 bot = telebot.TeleBot(TOKEN)
@@ -156,7 +155,7 @@ def get_card_and_update(uid):
     else:
         rarity_choice = random.choices(
             ["nothing", "common", "unusual", "heroic", "legendary", "impossible"], 
-            weights=[45, 25, 15, 9, 5, 1], 
+            weights=[30, 25, 23, 10, 7, 5], 
             k=1
         )[0]
 
@@ -192,7 +191,7 @@ def cmd_start(message):
     text = (
         "🐷 <b>Svin Cards</b>\n\n"
         "Кодовые слова: свинья, свинота, хряк, жир\n"
-        f"⏳ Кулдаун: {COOLDOWN // 60} мин.\n"
+        f"⏳ Кулдаун: {COOLDOWN // 240} мин.\n"
         f"🌙 С {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_START:02d} до {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_END:02d} МСК — секретная карточка по времени."
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML')
