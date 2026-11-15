@@ -191,7 +191,7 @@ def cmd_start(message):
     text = (
         "🐷 <b>Svin Cards</b>\n\n"
         "Кодовые слова: свинья, свинота, хряк, жир\n"
-        f"⏳ Кулдаун: {COOLDOWN // 240} мин.\n"
+        f"⏳ Кулдаун: {COOLDOWN // 60} мин.\n"
         #f"🌙 С {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_START:02d} до {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_END:02d} МСК — секретная карточка по времени."
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML')
