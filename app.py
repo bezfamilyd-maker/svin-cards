@@ -20,7 +20,7 @@ TIME_WINDOW_MINUTE_START = 48
 TIME_WINDOW_MINUTE_END = 49
 
 MSK = ZoneInfo("Europe/Moscow")
-CODEWORDS = {"свинья", "свинота", "хряк", "жир"}
+CODEWORDS = {"свинья", "свин", "Ваня", "@Vvan_Darkholme", "свинота", "хряк", "жир"}
 
 # ==================== КАРТОЧКИ ====================
 cards_nothing = [
@@ -155,7 +155,7 @@ def get_card_and_update(uid):
     else:
         rarity_choice = random.choices(
             ["nothing", "common", "unusual", "heroic", "legendary", "impossible"], 
-            weights=[30, 25, 23, 10, 7, 5], 
+            weights=[25, 24, 23, 15, 8, 5], 
             k=1
         )[0]
 
@@ -189,10 +189,9 @@ def format_remaining(seconds):
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
     text = (
-        "🐷 <b>Svin Cards</b>\n\n"
-        "Кодовые слова: свинья, свинота, хряк, жир\n"
-        f"⏳ Кулдаун: {COOLDOWN // 60} мин.\n"
-        #f"🌙 С {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_START:02d} до {TIME_WINDOW_HOUR}:{TIME_WINDOW_MINUTE_END:02d} МСК — секретная карточка по времени."
+        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот ддя твоего чата</b>\n\n"
+        "Напиши "свинья", чтобы подрочить меня</b>\n\n"
+        "P.s. Для связи с разработчиком отправь команду /help и иди нахуй"
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML')
 
@@ -202,7 +201,7 @@ def cmd_stats(message):
     cur.execute("SELECT last_draw_time FROM users WHERE user_id=?", (uid,))
     row = cur.fetchone()
     if row is None:
-        bot.reply_to(message, "Напиши «свинья», чтобы начать!")
+        bot.reply_to(message, "Напиши «свинья», чтобы начать либо иди нахуй, чмо!")
         return
     last_time = row[0]
     cooldown_left = max(0, int(COOLDOWN - (time.time() - last_time)))
@@ -211,7 +210,7 @@ def cmd_stats(message):
     if cooldown_left > 0:
         text += f"⏳ Кулдаун: {format_remaining(cooldown_left)}"
     else:
-        text += "✅ Можно тянуть карточку!"
+        text += "⚠️Нужно фармить свиней!"
     bot.reply_to(message, text, parse_mode='HTML')
 
 @bot.message_handler(content_types=['text'])
@@ -222,7 +221,7 @@ def handle_text(message):
     card, reason, cooldown_left = get_card_and_update(uid)
     
     if card is None:
-        bot.reply_to(message, f"⏳ Рано! Ждать: <b>{format_remaining(cooldown_left)}</b>.", parse_mode='HTML')
+        bot.reply_to(message, f"⏳ Еще рано, хуйня. Жди: <b>{format_remaining(cooldown_left)}</b>.", parse_mode='HTML')
         return
         
     caption = f"<b>{card['name']}</b>\nРедкость: {card['rarity']}"
