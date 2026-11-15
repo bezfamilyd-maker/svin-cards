@@ -310,10 +310,6 @@ def callback_card(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == 'back_to_rarities')
 def callback_back(call):
-    # Удаляем сообщение с карточкой, чтобы не было мешанины
-    bot.delete_message(call.message.chat.id, call.message.message_id)
-    
-    # Отправляем заново меню
     uid = call.from_user.id
     first_name = call.from_user.first_name
     
@@ -334,7 +330,25 @@ def callback_back(call):
         else: icon = "🌟"
         markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
         
-    bot.send_message(call.message.chat.id, text, reply_markup=markup, parse_mode='HTML')
+    try:
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=text,
+            reply_markup=markup,
+            parse_mode='HTML'
+        )
+    except Exception:
+        try:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=text,
+                reply_markup=markup,
+                parse_mode='HTML'
+            )
+        except Exception:
+            pass
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
