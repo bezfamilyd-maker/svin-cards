@@ -264,22 +264,29 @@ def cmd_stats(message):
     bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('rarity_'))
-def callback_rarity(call):
+@bot.callback_query_handler(func=lambda call: call.data == 'back_to_rarities')
+def callback_back_list(call):
     uid = call.from_user.id
-    rarity = call.data.split('_')[1]
+    first_name = call.from_user.first_name
     
-    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', uid).eq('card_rarity', rarity).execute()
-    if not inv_resp.data:
-        bot.answer_callback_query(call.id, "У тебя нет карточек этой редкости.")
-        return
-        
+    inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
+    rarities = set(item['card_rarity'] for item in inv_resp.data)
+    total_cards = len(inv_resp.data)
+    
+    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
+    
     markup = InlineKeyboardMarkup(row_width=2)
-    for item in inv_resp.data:
-        markup.add(InlineKeyboardButton(text=item['card_name'], callback_data=f"card_{item['card_name']}"))
-    markup.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_rarities"))
-    
-    bot.edit_message_text(f"Карточки редкости <b>{rarity}</b>:\nВыбери карточку:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
-
+    for r in rarities:
+        if r == "Ничего не стоит": icon = "🗑"
+        elif r == "Обычная": icon = "⚪"
+        elif r == "Необычная": icon = "🔵"
+        elif r == "Героизм": icon = "🟣"
+        elif r == "Легендарная": icon = "🟡"
+        elif r == "Невозможно": icon = "⚫️"
+        else: icon = "🌟"
+        markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
+        
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
 @bot.callback_query_handler(func=lambda call: call.data.startswith('card_'))
 def callback_card(call):
     uid = call.from_user.id
