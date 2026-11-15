@@ -23,7 +23,6 @@ TIME_WINDOW_MINUTE_END = 49
 MSK = ZoneInfo("Europe/Moscow")
 CODEWORDS = {"свинья", "свин", "ваня", "@vvan_darkholme", "свинота", "хряк", "жир"}
 
-# Лимиты для прокачки (максимальная сумма характеристики с бонусами)
 RARITY_LIMITS = {
     "Ничего не стоит": 20,
     "Обычная": 40,
@@ -124,7 +123,6 @@ cards_impossible = [
     {"photo": "AgACAgIAAxkBAAPTavmeMBTFbW8AAdOoUtQVYH-Mh5iTAALIImsbeQjRS_F0gvpSiQH9AQADAgADeQADPQQ", "name": "Терпила и его ёбырь", "rarity": "Невозможно", "fat": 83, "profit": 80, "culture": 86},
 ]
 
-# Особая карточка по времени
 TIME_CARD = {"photo": "AgACAgIAAxkBAANcavjRnfWN8rpI8i9gXtBf2pm7jowAAqMhaxt5CMlLUKlcBbpadbgBAAMCAAN4AAM9BA", "name": "Самая редкая карточка в мире (посхалко)", "rarity": "Секретная", "fat": 100, "profit": 100, "culture": 100}
 
 # ==================== БОТ И БАЗА ====================
@@ -150,8 +148,9 @@ def in_time_window():
 
 def get_card_and_update(uid):
     now_ts = time.time()
-    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
     
+    # 1. Проверяем кулдаун
+    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
     if not response.data:
         supabase.table('users').insert({'user_id': uid, 'last_draw_time': 0}).execute()
         last_time = 0
@@ -161,6 +160,7 @@ def get_card_and_update(uid):
     if now_ts - last_time < COOLDOWN:
         return None, "cooldown", int(COOLDOWN - (now_ts - last_time))
 
+    # 2. Выбираем карточку
     if in_time_window():
         card, reason = TIME_CARD, "time"
     else:
@@ -170,100 +170,20 @@ def get_card_and_update(uid):
             k=1
         )[0]
 
-        if rarity_choice == "nothing":
-            card = random.choice(cards_nothing)
-        elif rarity_choice == "common":
-            card = random.choice(cards_common)
-        elif rarity_choice == "unusual":
-            card = random.choice(cards_unusual)
-        elif rarity_choice == "heroic":
-            card = random.choice(cards_heroic)
-        elif rarity_choice == "legendary":
-            card = random.choice(cards_legendary)
-        else:
-            card = random.choice(cards_impossible)
-            
+        if rarity_choice == "nothing": card = random.choice(cards_nothing)
+        elif rarity_choice == "common": card = random.choice(cards_common)
+        elif rarity_choice == "unusual": card = random.choice(cards_unusual)
+        elif rarity_choice == "heroic": card = random.choice(cards_heroic)
+        elif rarity_choice == "legendary": card = random.choice(cards_legendary)
+        else: card = random.choice(cards_impossible)
         reason = "random"
 
+    # 3. Обновляем время
     supabase.table('users').update({'last_draw_time': now_ts}).eq('user_id', uid).execute()
-    return card, reason, 0
 
-def format_remaining(seconds):
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    if h: return f"{h} ч {m} мин"
-    if m: return f"{m} мин"
-    return f"{s} сек"
-
-# ==================== ОБРАБОТЧИКИ ====================
-@bot.message_handler(commands=['start'])
-def cmd_start(message):
-    text = (
-        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот для твоего чата</b>\n\n"
-        "Напиши 'свинья', чтобы подрочить меня\n\n"
-        "P.s. Для связи с разработчиком отправь команду /help и иди нахуй"
-    )
-    bot.send_message(message.chat.id, text, parse_mode='HTML')
-
-@bot.message_handler(commands=['stats'])
-def cmd_stats(message):
-    uid = message.from_user.id
-    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    # 4. Работа с инвентарем (дубликаты и прокачка)
+    inv_resp = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', card['name']).execute()
     
-    if not response.data:
-        bot.reply_to(message, "Напиши «свинья», чтобы начать либо иди нахуй, чмо!")
-        return
-        
-    last_time = response.data[0]['last_draw_time']
-    cooldown_left = max(0, int(COOLDOWN - (time.time() - last_time)))
-    
-    text = "📊 <b>Твоя статистика</b>\n\n"
-    if cooldown_left > 0:
-        text += f"⏳ Кулдаун: {format_remaining(cooldown_left)}"
-    else:
-        text += "⚠️Нужно фармить свиней!"
-    bot.reply_to(message, text, parse_mode='HTML')
-
-@bot.message_handler(content_types=['text'])
-def handle_text(message):
-    if message.text.lower().strip() not in CODEWORDS:
-        return
-    uid = message.from_user.id
-    card, reason, cooldown_left = get_card_and_update(uid)
-    
-    if card is None:
-        if random.choice([True, False]):
-            msg_text = f"⏳ Еще рано, хуйня. Жди: <b>{format_remaining(cooldown_left)}</b>."
-        else:
-            msg_text = f"Ты не голоден, тебе просто скучно. Жди: <b>{format_remaining(cooldown_left)}</b>."
-            
-        bot.reply_to(message, msg_text, parse_mode='HTML')
-        return
-        
-    rarity = card['rarity']
-    if rarity == "Ничего не стоит": icon = "🗑"
-    elif rarity == "Обычная": icon = "⚪"
-    elif rarity == "Необычная": icon = "🔵"
-    elif rarity == "Героизм": icon = "🟣"
-    elif rarity == "Легендарная": icon = "🟡"
-    elif rarity == "Невозможно": icon = "⚫️"
-    else: icon = "🌟"
-
-    caption = (
-        f"{icon} <b>{card['name']}</b>\n"
-        f"Редкость: {card['rarity']}\n\n"
-        f"🐷 Жирность: {card['fat']}\n"
-        f"💰 Выгодность: {card['profit']}\n"
-        f"🎩 Культурность: {card['culture']}"
-    )
-    
-    if reason == "time":
-        caption = "🌙 <b>Секретная карточка по времени!</b>\n\n" + caption
-    
-    bot.send_photo(message.chat.id, card["photo"], caption=caption, parse_mode='HTML')
-
-# ==================== ЗАПУСК ====================
-if __name__ == "__main__":
-    threading.Thread(target=run_flask, daemon=True).start()
-    print("🐷 Svin Cards запущен...")
-    bot.infinity_polling()
+    upgrade_msg = ""
+    if inv_resp.data:
+        # Карточка уже есть
