@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import random
 import time
 import datetime
@@ -7,11 +6,16 @@ import threading
 from zoneinfo import ZoneInfo
 from flask import Flask
 import telebot
+from supabase import create_client, Client
 
 # ==================== НАСТРОЙКИ ====================
 TOKEN = os.environ.get('TELEGRAM_TOKEN', '9010306241:AAH49OSX-q6U1DLjTeDshgLCJrEWrEYExfs')
 
-# Кулдаун между карточками (1 час = 3600 секунд)
+# Ключи Supabase (берутся из переменных окружения Render)
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+
+# Кулдаун между карточками (4 часа = 14400 секунд)
 COOLDOWN = 14400
 
 # Время по МСК (ровно 1 минута: с 14:48 до 14:49)
@@ -20,7 +24,7 @@ TIME_WINDOW_MINUTE_START = 48
 TIME_WINDOW_MINUTE_END = 49
 
 MSK = ZoneInfo("Europe/Moscow")
-CODEWORDS = {"свинья", "свин", "Ваня", "@Vvan_Darkholme", "свинота", "хряк", "жир"}
+CODEWORDS = {"свинья", "свин", "ваня", "@vvan_darkholme", "свинота", "хряк", "жир"}
 
 # ==================== КАРТОЧКИ ====================
 cards_nothing = [
@@ -105,18 +109,11 @@ cards_impossible = [
 # Особая карточка по времени (14:48 МСК)
 TIME_CARD = {"photo": "AgACAgIAAxkBAANcavjRnfWN8rpI8i9gXtBf2pm7jowAAqMhaxt5CMlLUKlcBbpadbgBAAMCAAN4AAM9BA", "name": "Самая редкая карточка в мире (посхалко)", "rarity": "Секретная"}
 
-# ==================== БОТ И БД ====================
+# ==================== БОТ И БАЗА ====================
 bot = telebot.TeleBot(TOKEN)
 
-conn = sqlite3.connect("bot.db", check_same_thread=False)
-cur = conn.cursor()
-cur.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    last_draw_time REAL DEFAULT 0
-)
-""")
-conn.commit()
+# Подключение к Supabase
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ==================== FLASK ДЛЯ RENDER ====================
 app = Flask(__name__)
@@ -137,15 +134,16 @@ def in_time_window():
 
 def get_card_and_update(uid):
     now_ts = time.time()
-    cur.execute("SELECT last_draw_time FROM users WHERE user_id=?", (uid,))
-    row = cur.fetchone()
     
-    if row is None:
-        cur.execute("INSERT INTO users (user_id, last_draw_time) VALUES (?, ?)", (uid, 0))
-        conn.commit()
+    # Ищем пользователя в Supabase
+    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    
+    if not response.data:
+        # Если пользователя нет, добавляем
+        supabase.table('users').insert({'user_id': uid, 'last_draw_time': 0}).execute()
         last_time = 0
     else:
-        last_time = row[0]
+        last_time = response.data[0]['last_draw_time']
 
     if now_ts - last_time < COOLDOWN:
         return None, "cooldown", int(COOLDOWN - (now_ts - last_time))
@@ -174,8 +172,8 @@ def get_card_and_update(uid):
             
         reason = "random"
 
-    cur.execute("UPDATE users SET last_draw_time=? WHERE user_id=?", (now_ts, uid))
-    conn.commit()
+    # Обновляем время в Supabase
+    supabase.table('users').update({'last_draw_time': now_ts}).eq('user_id', uid).execute()
     return card, reason, 0
 
 def format_remaining(seconds):
@@ -189,8 +187,8 @@ def format_remaining(seconds):
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
     text = (
-        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот ддя твоего чата</b>\n\n"
-        "Напиши "свинья", чтобы подрочить меня</b>\n\n"
+        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот для твоего чата</b>\n\n"
+        "Напиши 'свинья', чтобы подрочить меня\n\n"
         "P.s. Для связи с разработчиком отправь команду /help и иди нахуй"
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML')
@@ -198,12 +196,13 @@ def cmd_start(message):
 @bot.message_handler(commands=['stats'])
 def cmd_stats(message):
     uid = message.from_user.id
-    cur.execute("SELECT last_draw_time FROM users WHERE user_id=?", (uid,))
-    row = cur.fetchone()
-    if row is None:
+    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    
+    if not response.data:
         bot.reply_to(message, "Напиши «свинья», чтобы начать либо иди нахуй, чмо!")
         return
-    last_time = row[0]
+        
+    last_time = response.data[0]['last_draw_time']
     cooldown_left = max(0, int(COOLDOWN - (time.time() - last_time)))
     
     text = "📊 <b>Твоя статистика</b>\n\n"
@@ -235,4 +234,3 @@ if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
     print("🐷 Svin Cards запущен...")
     bot.infinity_polling()
-  
