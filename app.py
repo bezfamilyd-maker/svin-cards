@@ -303,53 +303,8 @@ def callback_card(call):
         f"🎩 Культурность: {base_card['culture']} (+{data['culture_bonus']})"
     )
     
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"rarity_{data['card_rarity']}"))
+    bot.send_photo(call.message.chat.id, data['card_photo'], caption=caption, parse_mode='HTML')
     
-    bot.send_photo(call.message.chat.id, data['card_photo'], caption=caption, reply_markup=markup, parse_mode='HTML')
-
-@bot.callback_query_handler(func=lambda call: call.data == 'back_to_rarities')
-def callback_back(call):
-    uid = call.from_user.id
-    first_name = call.from_user.first_name
-    
-    inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
-    rarities = set(item['card_rarity'] for item in inv_resp.data)
-    total_cards = len(inv_resp.data)
-    
-    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
-    
-    markup = InlineKeyboardMarkup(row_width=2)
-    for r in rarities:
-        if r == "Ничего не стоит": icon = "🗑"
-        elif r == "Обычная": icon = "⚪"
-        elif r == "Необычная": icon = "🔵"
-        elif r == "Героизм": icon = "🟣"
-        elif r == "Легендарная": icon = "🟡"
-        elif r == "Невозможно": icon = "⚫️"
-        else: icon = "🌟"
-        markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
-        
-    try:
-        bot.edit_message_caption(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            caption=text,
-            reply_markup=markup,
-            parse_mode='HTML'
-        )
-    except Exception:
-        try:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=text,
-                reply_markup=markup,
-                parse_mode='HTML'
-            )
-        except Exception:
-            pass
-
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     if message.text.lower().strip() not in CODEWORDS:
