@@ -304,7 +304,7 @@ def callback_card(call):
     )
     
     bot.send_photo(call.message.chat.id, data['card_photo'], caption=caption, parse_mode='HTML')
-    
+
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     if message.text.lower().strip() not in CODEWORDS:
