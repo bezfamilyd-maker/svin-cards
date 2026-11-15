@@ -186,4 +186,132 @@ def get_card_and_update(uid):
     
     upgrade_msg = ""
     if inv_resp.data:
-        # Карточка уже есть
+        # Карточка уже есть - это дубликат!
+        existing = inv_resp.data[0]
+        fat_b = existing['fat_bonus']
+        profit_b = existing['profit_bonus']
+        culture_b = existing['culture_bonus']
+        
+        # Проверяем, можно ли еще прокачивать
+        limit = RARITY_LIMITS[card['rarity']]
+        
+        # Собираем список характеристик, которые еще не достигли лимита
+        upgradable = []
+        if card['fat'] + fat_b < limit: upgradable.append('fat')
+        if card['profit'] + profit_b < limit: upgradable.append('profit')
+        if card['culture'] + culture_b < limit: upgradable.append('culture')
+        
+        if upgradable:
+            # Выбираем случайную характеристику из доступных
+            stat = random.choice(upgradable)
+            points = random.choice([2, 3])
+            
+            if stat == 'fat':
+                fat_b += points
+                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Жирность повышена на +{points}."
+            elif stat == 'profit':
+                profit_b += points
+                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Выгодность повышена на +{points}."
+            else:
+                culture_b += points
+                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Культурность повышена на +{points}."
+                
+            supabase.table('inventory').update({
+                'fat_bonus': fat_b,
+                'profit_bonus': profit_b,
+                'culture_bonus': culture_b
+            }).eq('id', existing['id']).execute()
+        else:
+            upgrade_msg = "\n\n🚫 <b>Дубликат!</b> Но твоя карточка уже полностью прокачана."
+            
+    else:
+        # Новая карточка, записываем в инвентарь
+        supabase.table('inventory').insert({
+            'user_id': uid,
+            'card_name': card['name'],
+            'card_rarity': card['rarity'],
+            'card_photo': card['photo'],
+            'fat_bonus': 0, 'profit_bonus': 0, 'culture_bonus': 0
+        }).execute()
+        
+    return card, reason, upgrade_msg
+
+def format_remaining(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    if h: return f"{h} ч {m} мин"
+    if m: return f"{m} мин"
+    return f"{s} сек"
+
+# ==================== ОБРАБОТЧИКИ ====================
+@bot.message_handler(commands=['start'])
+def cmd_start(message):
+    text = (
+        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот для твоего чата</b>\n\n"
+        "Напиши 'свинья', чтобы подрочить меня\n\n"
+        "P.s. Для связи с разработчиком отправь команду /help и иди нахуй"
+    )
+    bot.send_message(message.chat.id, text, parse_mode='HTML')
+
+@bot.message_handler(commands=['stats'])
+def cmd_stats(message):
+    uid = message.from_user.id
+    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    
+    if not response.data:
+        bot.reply_to(message, "Напиши «свинья», чтобы начать либо иди нахуй, чмо!")
+        return
+        
+    last_time = response.data[0]['last_draw_time']
+    cooldown_left = max(0, int(COOLDOWN - (time.time() - last_time)))
+    
+    text = "📊 <b>Твоя статистика</b>\n\n"
+    if cooldown_left > 0:
+        text += f"⏳ Кулдаун: {format_remaining(cooldown_left)}"
+    else:
+        text += "⚠️Нужно фармить свиней!"
+    bot.reply_to(message, text, parse_mode='HTML')
+
+@bot.message_handler(content_types=['text'])
+def handle_text(message):
+    if message.text.lower().strip() not in CODEWORDS:
+        return
+    uid = message.from_user.id
+    card, reason, extra_msg = get_card_and_update(uid)
+    
+    if card is None:
+        if random.choice([True, False]):
+            msg_text = f"⏳ Еще рано, хуйня. Жди: <b>{format_remaining(extra_msg)}</b>."
+        else:
+            msg_text = f"Ты не голоден, тебе просто скучно. Жди: <b>{format_remaining(extra_msg)}</b>."
+        bot.reply_to(message, msg_text, parse_mode='HTML')
+        return
+        
+    rarity = card['rarity']
+    if rarity == "Ничего не стоит": icon = "🗑"
+    elif rarity == "Обычная": icon = "⚪"
+    elif rarity == "Необычная": icon = "🔵"
+    elif rarity == "Героизм": icon = "🟣"
+    elif rarity == "Легендарная": icon = "🟡"
+    elif rarity == "Невозможно": icon = "⚫️"
+    else: icon = "🌟"
+
+    caption = (
+        f"{icon} <b>{card['name']}</b>\n"
+        f"Редкость: {card['rarity']}\n\n"
+        f"🐷 Жирность: {card['fat']}\n"
+        f"💰 Выгодность: {card['profit']}\n"
+        f"🎩 Культурность: {card['culture']}"
+        f"{extra_msg}"
+    )
+    
+    if reason == "time":
+        caption = "🌙 <b>Секретная карточка по времени!</b>\n\n" + caption
+    
+    bot.send_photo(message.chat.id, card["photo"], caption=caption, parse_mode='HTML')
+
+# ==================== ЗАПУСК ====================
+if __name__ == "__main__":
+    threading.Thread(target=run_flask, daemon=True).start()
+    print("🐷 Svin Cards запущен...")
+    bot.infinity_polling()
