@@ -6,6 +6,7 @@ import threading
 from zoneinfo import ZoneInfo
 from flask import Flask
 import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from supabase import create_client, Client
 
 # ==================== НАСТРОЙКИ ====================
@@ -148,9 +149,8 @@ def in_time_window():
 
 def get_card_and_update(uid):
     now_ts = time.time()
-    
-    # 1. Проверяем кулдаун
     response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    
     if not response.data:
         supabase.table('users').insert({'user_id': uid, 'last_draw_time': 0}).execute()
         last_time = 0
@@ -160,7 +160,6 @@ def get_card_and_update(uid):
     if now_ts - last_time < COOLDOWN:
         return None, "cooldown", int(COOLDOWN - (now_ts - last_time))
 
-    # 2. Выбираем карточку
     if in_time_window():
         card, reason = TIME_CARD, "time"
     else:
@@ -178,34 +177,24 @@ def get_card_and_update(uid):
         else: card = random.choice(cards_impossible)
         reason = "random"
 
-    # 3. Обновляем время
     supabase.table('users').update({'last_draw_time': now_ts}).eq('user_id', uid).execute()
 
-    # 4. Работа с инвентарем (дубликаты и прокачка)
     inv_resp = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', card['name']).execute()
-    
     upgrade_msg = ""
+    
     if inv_resp.data:
-        # Карточка уже есть - это дубликат!
         existing = inv_resp.data[0]
-        fat_b = existing['fat_bonus']
-        profit_b = existing['profit_bonus']
-        culture_b = existing['culture_bonus']
-        
-        # Проверяем, можно ли еще прокачивать
+        fat_b, profit_b, culture_b = existing['fat_bonus'], existing['profit_bonus'], existing['culture_bonus']
         limit = RARITY_LIMITS[card['rarity']]
         
-        # Собираем список характеристик, которые еще не достигли лимита
         upgradable = []
         if card['fat'] + fat_b < limit: upgradable.append('fat')
         if card['profit'] + profit_b < limit: upgradable.append('profit')
         if card['culture'] + culture_b < limit: upgradable.append('culture')
         
         if upgradable:
-            # Выбираем случайную характеристику из доступных
             stat = random.choice(upgradable)
             points = random.choice([2, 3])
-            
             if stat == 'fat':
                 fat_b += points
                 upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Жирность повышена на +{points}."
@@ -217,21 +206,14 @@ def get_card_and_update(uid):
                 upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Культурность повышена на +{points}."
                 
             supabase.table('inventory').update({
-                'fat_bonus': fat_b,
-                'profit_bonus': profit_b,
-                'culture_bonus': culture_b
+                'fat_bonus': fat_b, 'profit_bonus': profit_b, 'culture_bonus': culture_b
             }).eq('id', existing['id']).execute()
         else:
             upgrade_msg = "\n\n🚫 <b>Дубликат!</b> Но твоя карточка уже полностью прокачана."
-            
     else:
-        # Новая карточка, записываем в инвентарь
         supabase.table('inventory').insert({
-            'user_id': uid,
-            'card_name': card['name'],
-            'card_rarity': card['rarity'],
-            'card_photo': card['photo'],
-            'fat_bonus': 0, 'profit_bonus': 0, 'culture_bonus': 0
+            'user_id': uid, 'card_name': card['name'], 'card_rarity': card['rarity'],
+            'card_photo': card['photo'], 'fat_bonus': 0, 'profit_bonus': 0, 'culture_bonus': 0
         }).execute()
         
     return card, reason, upgrade_msg
@@ -256,21 +238,99 @@ def cmd_start(message):
 @bot.message_handler(commands=['stats'])
 def cmd_stats(message):
     uid = message.from_user.id
-    response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
+    first_name = message.from_user.first_name
     
-    if not response.data:
-        bot.reply_to(message, "Напиши «свинья», чтобы начать либо иди нахуй, чмо!")
+    inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
+    if not inv_resp.data:
+        bot.reply_to(message, f"У тебя пока нет карточек, {first_name}. Напиши «свинья»!")
         return
         
-    last_time = response.data[0]['last_draw_time']
-    cooldown_left = max(0, int(COOLDOWN - (time.time() - last_time)))
+    rarities = set(item['card_rarity'] for item in inv_resp.data)
+    total_cards = len(inv_resp.data)
     
-    text = "📊 <b>Твоя статистика</b>\n\n"
-    if cooldown_left > 0:
-        text += f"⏳ Кулдаун: {format_remaining(cooldown_left)}"
-    else:
-        text += "⚠️Нужно фармить свиней!"
-    bot.reply_to(message, text, parse_mode='HTML')
+    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
+    
+    markup = InlineKeyboardMarkup(row_width=2)
+    for r in rarities:
+        if r == "Ничего не стоит": icon = "🗑"
+        elif r == "Обычная": icon = "⚪"
+        elif r == "Необычная": icon = "🔵"
+        elif r == "Героизм": icon = "🟣"
+        elif r == "Легендарная": icon = "🟡"
+        elif r == "Невозможно": icon = "⚫️"
+        else: icon = "🌟"
+        markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
+        
+    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('rarity_'))
+def callback_rarity(call):
+    uid = call.from_user.id
+    rarity = call.data.split('_')[1]
+    
+    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', uid).eq('card_rarity', rarity).execute()
+    if not inv_resp.data:
+        bot.answer_callback_query(call.id, "У тебя нет карточек этой редкости.")
+        return
+        
+    markup = InlineKeyboardMarkup(row_width=2)
+    for item in inv_resp.data:
+        markup.add(InlineKeyboardButton(text=item['card_name'], callback_data=f"card_{item['card_name']}"))
+    markup.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_rarities"))
+    
+    bot.edit_message_text(f"Карточки редкости <b>{rarity}</b>:\nВыбери карточку:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('card_'))
+def callback_card(call):
+    uid = call.from_user.id
+    card_name = call.data.replace('card_', '')
+    
+    inv_resp = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', card_name).execute()
+    if not inv_resp.data:
+        bot.answer_callback_query(call.id, "Ошибка.")
+        return
+        
+    data = inv_resp.data[0]
+    
+    all_cards = cards_nothing + cards_common + cards_unusual + cards_heroic + cards_legendary + cards_impossible + [TIME_CARD]
+    base_card = next((c for c in all_cards if c['name'] == card_name), None)
+    
+    caption = (
+        f"🎴 <b>{data['card_name']}</b>\n"
+        f"Редкость: {data['card_rarity']}\n\n"
+        f"🐷 Жирность: {base_card['fat']} (+{data['fat_bonus']})\n"
+        f"💰 Выгодность: {base_card['profit']} (+{data['profit_bonus']})\n"
+        f"🎩 Культурность: {base_card['culture']} (+{data['culture_bonus']})"
+    )
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"rarity_{data['card_rarity']}"))
+    
+    bot.send_photo(call.message.chat.id, data['card_photo'], caption=caption, reply_markup=markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data == 'back_to_rarities')
+def callback_back(call):
+    uid = call.from_user.id
+    first_name = call.from_user.first_name
+    
+    inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
+    rarities = set(item['card_rarity'] for item in inv_resp.data)
+    total_cards = len(inv_resp.data)
+    
+    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
+    
+    markup = InlineKeyboardMarkup(row_width=2)
+    for r in rarities:
+        if r == "Ничего не стоит": icon = "🗑"
+        elif r == "Обычная": icon = "⚪"
+        elif r == "Необычная": icon = "🔵"
+        elif r == "Героизм": icon = "🟣"
+        elif r == "Легендарная": icon = "🟡"
+        elif r == "Невозможно": icon = "⚫️"
+        else: icon = "🌟"
+        markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
+        
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
