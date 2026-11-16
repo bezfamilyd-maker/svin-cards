@@ -163,7 +163,7 @@ def get_card_and_update(uid):
     else:
         rarity_choice = random.choices(
             ["nothing", "common", "unusual", "heroic", "legendary", "impossible"], 
-            weights=[35, 28, 15, 10, 8, 4], 
+            weights=[50, 29, 10, 5, 4, 2], 
             k=1
         )[0]
 
