@@ -233,6 +233,76 @@ def cmd_start(message):
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML')
 
+# ==================== СИСТЕМА PVP БОЕВ (ЭТАП 1) ====================
+ALLOWED_CHAT_ID = -1002541291432
+
+@bot.message_handler(commands=['battle'])
+def cmd_battle(message):
+    # Проверка, что команда вызвана именно в нужном чате
+    if message.chat.id != ALLOWED_CHAT_ID:
+        bot.reply_to(message, "Свинобойня проводится только в специально отведенной бане! Иди нахуй, пидрила")
+        return
+
+    # Проверка, что игрок отметил соперника
+    if len(message.entities) < 2 or message.entities[1].type != 'mention':
+        bot.reply_to(message, "Чтобы вызвать на свинобой, напиши: `/battle @username`", parse_mode='Markdown')
+        return
+
+    # Получаем username соперника (без символа @)
+    enemy_username = message.entities[1].extract_from(message.text)[1:]
+    
+    # Получаем информацию о вызывающем
+    challenger_id = message.from_user.id
+    challenger_name = message.from_user.first_name
+
+    # Проверяем, есть ли у вызывающего карточки
+    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', challenger_id).execute()
+    if not inv_resp.data:
+        bot.reply_to(message, f"{challenger_name}, Хахаха, ты ебаная нищета! Напиши «свин», чтобы получить пизды, или иди нахуй.")
+        return
+
+    # Отправляем сообщение с кнопками
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"accept_battle_{challenger_id}_{enemy_username}"),
+        InlineKeyboardButton(text="❌ Я питух", callback_data=f"decline_battle_{challenger_id}")
+    )
+    
+    text = f"⚔️ <b>{challenger_name}</b> вызывает на смертельный бой <b>@{enemy_username}</b>!\n\nНа кону стоит твоё очко. Согласен?"
+    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('accept_battle_'))
+def callback_accept_battle(call):
+    # Парсим данные: accept_battle_ID_username
+    parts = call.data.split('_')
+    challenger_id = int(parts[2])
+    enemy_username = parts[3]
+    
+    # Проверяем, что на кнопку нажал именно тот, кого вызвали
+    if call.from_user.username.lower() != enemy_username.lower():
+        bot.answer_callback_query(call.id, "Убери свои ебаные сардельки!", show_alert=True)
+        return
+
+    # Проверяем, есть ли у того, кого вызвали, карточки
+    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', call.from_user.id).execute()
+    if not inv_resp.data:
+        bot.answer_callback_query(call.id, "Нищета без карточек, пошла нахуй отсюда!", show_alert=True)
+        return
+
+    # Меняем сообщение
+    bot.edit_message_text(
+        f"⚔️ <b>Чмо не зассало, газ!</b>\n\nПидорас {challenger_id} и Пидорас {call.from_user.id} готовы к свинобойне.\n\nСейчас лудка раздаст вам свиней.",
+        call.message.chat.id, call.message.message_id, parse_mode='HTML'
+    )
+    # Здесь в будущем (Этап 2) мы вызовем функцию старта боя
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('decline_battle_'))
+def callback_decline_battle(call):
+    bot.edit_message_text(
+        "❌ ПИТУШАРА. Этот хуеглот зассал играть, позор ему!.",
+        call.message.chat.id, call.message.message_id, parse_mode='HTML'
+    )
+
 @bot.message_handler(commands=['stats'])
 def cmd_stats(message):
     uid = message.from_user.id
@@ -240,13 +310,13 @@ def cmd_stats(message):
     
     inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
     if not inv_resp.data:
-        bot.reply_to(message, f"У тебя пока нет карточек, {first_name}. Напиши «свинья»!")
+        bot.reply_to(message, f"Ты ебаная нищета, {first_name}. Напиши «свин» и иди нахуй!")
         return
         
     rarities = set(item['card_rarity'] for item in inv_resp.data)
     total_cards = len(inv_resp.data)
     
-    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
+    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери свиноредкость:"
     
     markup = InlineKeyboardMarkup(row_width=2)
     for r in rarities:
@@ -268,7 +338,7 @@ def callback_rarity(call):
     
     inv_resp = supabase.table('inventory').select('card_name').eq('user_id', uid).eq('card_rarity', rarity).execute()
     if not inv_resp.data:
-        bot.answer_callback_query(call.id, "У тебя нет карточек этой редкости.")
+        bot.answer_callback_query(call.id, "Ты нищета без карточек этой свиноредкости.")
         return
         
     markup = InlineKeyboardMarkup(row_width=2)
@@ -312,7 +382,7 @@ def callback_back_list(call):
     rarities = set(item['card_rarity'] for item in inv_resp.data)
     total_cards = len(inv_resp.data)
     
-    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери редкость:"
+    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери свиноредкость:"
     
     markup = InlineKeyboardMarkup(row_width=2)
     for r in rarities:
