@@ -16,25 +16,20 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
 COOLDOWN = 7200  # 2 часа
-
 TIME_WINDOW_HOUR = 14
 TIME_WINDOW_MINUTE_START = 48
 TIME_WINDOW_MINUTE_END = 49
 
 MSK = ZoneInfo("Europe/Moscow")
 CODEWORDS = {"свинья", "свин", "ваня", "@vvan_darkholme", "свинота", "хряк", "жир"}
+ALLOWED_CHAT_ID = -1002541291432
 
 RARITY_LIMITS = {
-    "Ничего не стоит": 20,
-    "Обычная": 40,
-    "Необычная": 60,
-    "Героизм": 70,
-    "Легендарная": 90,
-    "Невозможно": 100,
-    "Секретная": 100
+    "Ничего не стоит": 20, "Обычная": 40, "Необычная": 60,
+    "Героизм": 70, "Легендарная": 90, "Невозможно": 100, "Секретная": 100
 }
 
-# ==================== КАРТОЧКИ С ХАРАКТЕРИСТИКАМИ ====================
+# ==================== КАРТОЧКИ ====================
 cards_nothing = [
     {"photo": "AgACAgIAAxkBAAMCavjOkT35v2AoMbS23FY3YFDlg00AAmshaxt5CMlL6JsNIfTs94YBAAMCAAN5AAM9BA", "name": "Кабан обыкновенный жирный", "rarity": "Ничего не стоит", "fat": 8, "profit": 1, "culture": 1},
     {"photo": "AgACAgIAAxkBAAMEavjOmJsplG8HrkuTK0lMlQpCrhoAAmwhaxt5CMlL6hBVPmgtszQBAAMCAAN5AAM9BA", "name": "Милый кабанчик", "rarity": "Ничего не стоит", "fat": 2, "profit": 3, "culture": 5},
@@ -139,16 +134,14 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# ==================== ЛОГИКА ====================
+# ==================== ЛОГИКА ВЫПАДЕНИЯ ====================
 def in_time_window():
     now = datetime.datetime.now(MSK)
-    return (now.hour == TIME_WINDOW_HOUR and 
-            TIME_WINDOW_MINUTE_START <= now.minute < TIME_WINDOW_MINUTE_END)
+    return (now.hour == TIME_WINDOW_HOUR and TIME_WINDOW_MINUTE_START <= now.minute < TIME_WINDOW_MINUTE_END)
 
 def get_card_and_update(uid):
     now_ts = time.time()
     response = supabase.table('users').select('last_draw_time').eq('user_id', uid).execute()
-    
     if not response.data:
         supabase.table('users').insert({'user_id': uid, 'last_draw_time': 0}).execute()
         last_time = 0
@@ -161,12 +154,7 @@ def get_card_and_update(uid):
     if in_time_window():
         card, reason = TIME_CARD, "time"
     else:
-        rarity_choice = random.choices(
-            ["nothing", "common", "unusual", "heroic", "legendary", "impossible"], 
-            weights=[50, 29, 10, 5, 4, 2], 
-            k=1
-        )[0]
-
+        rarity_choice = random.choices(["nothing", "common", "unusual", "heroic", "legendary", "impossible"], weights=[50, 29, 10, 5, 4, 2], k=1)[0]
         if rarity_choice == "nothing": card = random.choice(cards_nothing)
         elif rarity_choice == "common": card = random.choice(cards_common)
         elif rarity_choice == "unusual": card = random.choice(cards_unusual)
@@ -179,12 +167,10 @@ def get_card_and_update(uid):
 
     inv_resp = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', card['name']).execute()
     upgrade_msg = ""
-    
     if inv_resp.data:
         existing = inv_resp.data[0]
         fat_b, profit_b, culture_b = existing['fat_bonus'], existing['profit_bonus'], existing['culture_bonus']
         limit = RARITY_LIMITS[card['rarity']]
-        
         upgradable = []
         if card['fat'] + fat_b < limit: upgradable.append('fat')
         if card['profit'] + profit_b < limit: upgradable.append('profit')
@@ -193,27 +179,14 @@ def get_card_and_update(uid):
         if upgradable:
             stat = random.choice(upgradable)
             points = random.choice([2, 3])
-            if stat == 'fat':
-                fat_b += points
-                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Жирность повышена на +{points}."
-            elif stat == 'profit':
-                profit_b += points
-                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Выгодность повышена на +{points}."
-            else:
-                culture_b += points
-                upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Культурность повышена на +{points}."
-                
-            supabase.table('inventory').update({
-                'fat_bonus': fat_b, 'profit_bonus': profit_b, 'culture_bonus': culture_b
-            }).eq('id', existing['id']).execute()
+            if stat == 'fat': fat_b += points; upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Жирность повышена на +{points}."
+            elif stat == 'profit': profit_b += points; upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Выгодность повышена на +{points}."
+            else: culture_b += points; upgrade_msg = f"\n\n📈 <b>Дубликат!</b> Культурность повышена на +{points}."
+            supabase.table('inventory').update({'fat_bonus': fat_b, 'profit_bonus': profit_b, 'culture_bonus': culture_b}).eq('id', existing['id']).execute()
         else:
             upgrade_msg = "\n\n🚫 <b>Дубликат!</b> Но твоя карточка уже полностью прокачана."
     else:
-        supabase.table('inventory').insert({
-            'user_id': uid, 'card_name': card['name'], 'card_rarity': card['rarity'],
-            'card_photo': card['photo'], 'fat_bonus': 0, 'profit_bonus': 0, 'culture_bonus': 0
-        }).execute()
-        
+        supabase.table('inventory').insert({'user_id': uid, 'card_name': card['name'], 'card_rarity': card['rarity'], 'card_photo': card['photo'], 'fat_bonus': 0, 'profit_bonus': 0, 'culture_bonus': 0}).execute()
     return card, reason, upgrade_msg
 
 def format_remaining(seconds):
@@ -226,230 +199,210 @@ def format_remaining(seconds):
 # ==================== ОБРАБОТЧИКИ ====================
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
-    text = (
-        "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот для твоего чата</b>\n\n"
-        "Напиши 'свинья', чтобы подрочить меня\n\n"
-        "P.s. Для связи с разработчиком отправь команду /help и иди нахуй"
-    )
+    text = "🐷 <b>Прiвiт! Цэ я, свинота, карточный бот</b>\n\nНапиши 'свинья', чтобы получить карточку\nДля инвентаря: /stats"
     bot.send_message(message.chat.id, text, parse_mode='HTML')
-
-# ==================== СИСТЕМА PVP БОЕВ (ЭТАП 1) ====================
-ALLOWED_CHAT_ID = -1002541291432
-
-@bot.message_handler(commands=['battle'])
-def cmd_battle(message):
-    if message.chat.id != ALLOWED_CHAT_ID:
-        bot.reply_to(message, "Свинобойня проводится только в специально отведенной бане! Иди нахуй, пидрила")
-        return
-
-    challenger_id = message.from_user.id
-    challenger_name = message.from_user.first_name
-    enemy_id = None
-    enemy_name = None
-
-    # ПРОВЕРКА 1: Если это ответ (Reply) на сообщение
-    if message.reply_to_message:
-        # Если сообщение отправлено от имени канала, from_user может быть None
-        if message.reply_to_message.from_user is None:
-            bot.reply_to(message, "Я не могу вызвать на бой канал, хуйня.")
-            return
-            
-        enemy_id = message.reply_to_message.from_user.id
-        enemy_name = message.reply_to_message.from_user.first_name
-        
-        # Нельзя вызвать самого себя
-        if enemy_id == challenger_id:
-            bot.reply_to(message, "Ты че, ебанутый? Сам с собой воевать собрался?")
-            return
-
-    # ПРОВЕРКА 2: Если написан текст /battle @username
-    else:
-        parts = message.text.split()
-        if len(parts) < 2 or not parts[1].startswith('@'):
-            bot.reply_to(message, "Чтобы вызвать на свинобой, ответь на сообщение человека и напиши `/battle`.", parse_mode='Markdown')
-            return
-        else:
-            bot.reply_to(message, "Хуесосина, ответь на сообщение, чтобы вызвать на свинобой.")
-            return
-
-    # Проверяем карточки у вызывающего
-    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', challenger_id).execute()
-    if not inv_resp.data:
-        bot.reply_to(message, f"{challenger_name}, Хахаха, ты ебаная нищета! Напиши «свин», чтобы получить пизды, или иди нахуй.")
-        return
-
-    # Формируем кнопку
-    markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"accept_battle_{challenger_id}_{enemy_id}"),
-        InlineKeyboardButton(text="❌ Я питух", callback_data=f"decline_battle_{challenger_id}")
-    )
-    
-    text = f"⚔️ <b>{challenger_name}</b> вызывает на смертельный бой <b>{enemy_name}</b>!\n\nНа кону стоит твоё очко. Согласен?"
-    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
-
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith('accept_battle_'))
-def callback_accept_battle(call):
-    # Парсим данные безопасно
-    data_part = call.data[14:] 
-    challenger_id_str, enemy_id_str = data_part.split('_', 1)
-    challenger_id = int(challenger_id_str)
-    enemy_id = int(enemy_id_str)
-    
-    # Проверяем, что нажал именно тот, кого вызвали
-    if call.from_user.id != enemy_id:
-        bot.answer_callback_query(call.id, "Убери свои ебаные сардельки!", show_alert=True)
-        return
-    
-    inv_resp = supabase.table('inventory').select('card_name').eq('user_id', call.from_user.id).execute()
-    if not inv_resp.data:
-        bot.answer_callback_query(call.id, "Нищета без карточек, пошла нахуй отсюда!", show_alert=True)
-        return
-
-    bot.edit_message_text(
-        f"⚔️ <b>Чмо не зассало, газ!</b>\n\nПидорас {challenger_id} и Пидорас {call.from_user.id} готовы к свинобойне.\n\nСейчас лудка раздаст вам свиней.",
-        call.message.chat.id, call.message.message_id, parse_mode='HTML'
-    )
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith('decline_battle_'))
-def callback_decline_battle(call):
-    bot.edit_message_text(
-        "❌ ПИТУШАРА. Этот хуеглот зассал играть, позор ему!.",
-        call.message.chat.id, call.message.message_id, parse_mode='HTML'
-    )
 
 @bot.message_handler(commands=['stats'])
 def cmd_stats(message):
     uid = message.from_user.id
-    first_name = message.from_user.first_name
-    
     inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
     if not inv_resp.data:
-        bot.reply_to(message, f"Ты ебаная нищета, {first_name}. Напиши «свин» и иди нахуй!")
+        bot.reply_to(message, "У тебя пока нет карточек!")
         return
-        
     rarities = set(item['card_rarity'] for item in inv_resp.data)
-    total_cards = len(inv_resp.data)
-    
-    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери свиноредкость:"
-    
     markup = InlineKeyboardMarkup(row_width=2)
     for r in rarities:
-        if r == "Ничего не стоит": icon = "🗑"
-        elif r == "Обычная": icon = "⚪"
-        elif r == "Необычная": icon = "🔵"
-        elif r == "Героизм": icon = "🟣"
-        elif r == "Легендарная": icon = "🟡"
-        elif r == "Невозможно": icon = "⚫️"
-        else: icon = "🌟"
+        icon = "🗑" if r == "Ничего не стоит" else "⚪" if r == "Обычная" else "🔵" if r == "Необычная" else "🟣" if r == "Героизм" else "🟡" if r == "Легендарная" else "⚫️" if r == "Невозможно" else "🌟"
         markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
-        
-    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
+    bot.send_message(message.chat.id, f"📊 <b>Инвентарь</b>\nСобрано: {len(inv_resp.data)}", reply_markup=markup, parse_mode='HTML')
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('rarity_'))
 def callback_rarity(call):
     uid = call.from_user.id
     rarity = call.data.split('_', 1)[1] 
-    
     inv_resp = supabase.table('inventory').select('card_name').eq('user_id', uid).eq('card_rarity', rarity).execute()
     if not inv_resp.data:
-        bot.answer_callback_query(call.id, "Ты нищета без карточек этой свиноредкости.")
+        bot.answer_callback_query(call.id, "Нет карточек этой редкости.")
         return
-        
     markup = InlineKeyboardMarkup(row_width=2)
     for item in inv_resp.data:
         markup.add(InlineKeyboardButton(text=item['card_name'], callback_data=f"card_{item['card_name']}"))
     markup.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_rarities"))
-    
-    bot.edit_message_text(f"Карточки редкости <b>{rarity}</b>:\nВыбери карточку:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
+    bot.edit_message_text(f"Карточки <b>{rarity}</b>:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('card_'))
 def callback_card(call):
     uid = call.from_user.id
     card_name = call.data.replace('card_', '')
-    
     inv_resp = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', card_name).execute()
-    if not inv_resp.data:
-        bot.answer_callback_query(call.id, "Ошибка.")
-        return
-        
+    if not inv_resp.data: return
     data = inv_resp.data[0]
-    
     all_cards = cards_nothing + cards_common + cards_unusual + cards_heroic + cards_legendary + cards_impossible + [TIME_CARD]
     base_card = next((c for c in all_cards if c['name'] == card_name), None)
-    
-    caption = (
-        f"🎴 <b>{data['card_name']}</b>\n"
-        f"Редкость: {data['card_rarity']}\n\n"
-        f"🐷 Жирность: {base_card['fat']} (+{data['fat_bonus']})\n"
-        f"💰 Выгодность: {base_card['profit']} (+{data['profit_bonus']})\n"
-        f"🎩 Культурность: {base_card['culture']} (+{data['culture_bonus']})"
-    )
-    
+    caption = f"🎴 <b>{data['card_name']}</b>\nРедкость: {data['card_rarity']}\n\n🐷 Жирность: {base_card['fat']} (+{data['fat_bonus']})\n💰 Выгодность: {base_card['profit']} (+{data['profit_bonus']})\n🎩 Культурность: {base_card['culture']} (+{data['culture_bonus']})"
     bot.send_photo(call.message.chat.id, data['card_photo'], caption=caption, parse_mode='HTML')
 
 @bot.callback_query_handler(func=lambda call: call.data == 'back_to_rarities')
 def callback_back_list(call):
     uid = call.from_user.id
-    first_name = call.from_user.first_name
-    
     inv_resp = supabase.table('inventory').select('card_rarity').eq('user_id', uid).execute()
     rarities = set(item['card_rarity'] for item in inv_resp.data)
-    total_cards = len(inv_resp.data)
-    
-    text = f"📊 <b>Инвентарь {first_name}</b>\nСобрано карточек: {total_cards}\n\nВыбери свиноредкость:"
-    
     markup = InlineKeyboardMarkup(row_width=2)
     for r in rarities:
-        if r == "Ничего не стоит": icon = "🗑"
-        elif r == "Обычная": icon = "⚪"
-        elif r == "Необычная": icon = "🔵"
-        elif r == "Героизм": icon = "🟣"
-        elif r == "Легендарная": icon = "🟡"
-        elif r == "Невозможно": icon = "⚫️"
-        else: icon = "🌟"
+        icon = "🗑" if r == "Ничего не стоит" else "⚪" if r == "Обычная" else "🔵" if r == "Необычная" else "🟣" if r == "Героизм" else "🟡" if r == "Легендарная" else "⚫️" if r == "Невозможно" else "🌟"
         markup.add(InlineKeyboardButton(text=f"{icon} {r}", callback_data=f"rarity_{r}"))
-        
-    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
+    bot.edit_message_text(f"📊 <b>Инвентарь</b>\nСобрано: {len(inv_resp.data)}", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode='HTML')
 
+# ==================== ВЫДАЧА КАРТОЧЕК ====================
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
-    if message.text.lower().strip() not in CODEWORDS:
-        return
+    if message.text.lower().strip() not in CODEWORDS: return
     uid = message.from_user.id
     card, reason, extra_msg = get_card_and_update(uid)
-    
     if card is None:
-        if random.choice([True, False]):
-            msg_text = f"⏳ Еще рано, хуйня. Жди: <b>{format_remaining(extra_msg)}</b>."
-        else:
-            msg_text = f"Ты не голоден, тебе просто скучно. Жди: <b>{format_remaining(extra_msg)}</b>."
+        msg_text = f"⏳ Еще рано, хуйня. Жди: <b>{format_remaining(extra_msg)}</b>." if random.choice([True, False]) else f"Ты не голоден, тебе просто скучно. Жди: <b>{format_remaining(extra_msg)}</b>."
         bot.reply_to(message, msg_text, parse_mode='HTML')
         return
-        
-    rarity = card['rarity']
-    if rarity == "Ничего не стоит": icon = "🗑"
-    elif rarity == "Обычная": icon = "⚪"
-    elif rarity == "Необычная": icon = "🔵"
-    elif rarity == "Героизм": icon = "🟣"
-    elif rarity == "Легендарная": icon = "🟡"
-    elif rarity == "Невозможно": icon = "⚫️"
-    else: icon = "🌟"
-
-    caption = (
-        f"{icon} <b>{card['name']}</b>\n"
-        f"Редкость: {card['rarity']}\n\n"
-        f"🐷 Жирность: {card['fat']}\n"
-        f"💰 Выгодность: {card['profit']}\n"
-        f"🎩 Культурность: {card['culture']}"
-        f"{extra_msg}"
-    )
-    
-    if reason == "time":
-        caption = "🌙 <b>Секретная карточка по времени!</b>\n\n" + caption
-    
+    icon = "🗑" if card['rarity'] == "Ничего не стоит" else "⚪" if card['rarity'] == "Обычная" else "🔵" if card['rarity'] == "Необычная" else "🟣" if card['rarity'] == "Героизм" else "🟡" if card['rarity'] == "Легендарная" else "⚫️" if card['rarity'] == "Невозможно" else "🌟"
+    caption = f"{icon} <b>{card['name']}</b>\nРедкость: {card['rarity']}\n\n🐷 Жирность: {card['fat']}\n💰 Выгодность: {card['profit']}\n🎩 Культурность: {card['culture']}{extra_msg}"
+    if reason == "time": caption = "🌙 <b>Секретная карточка!</b>\n\n" + caption
     bot.send_photo(message.chat.id, card["photo"], caption=caption, parse_mode='HTML')
+
+# ==================== PVP БОИ ====================
+@bot.message_handler(commands=['battle'])
+def cmd_battle(message):
+    if message.chat.id != ALLOWED_CHAT_ID:
+        bot.reply_to(message, "Бои только в спец. чате!")
+        return
+    if not message.reply_to_message or message.reply_to_message.from_user.id == message.from_user.id:
+        bot.reply_to(message, "Ответь на сообщение игрока и напиши `/battle`.", parse_mode='Markdown')
+        return
+    
+    enemy_id = message.reply_to_message.from_user.id
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(text="✅ Принять", callback_data=f"acc_{message.from_user.id}_{enemy_id}"), InlineKeyboardButton(text="❌ Отказаться", callback_data=f"dec_{message.from_user.id}"))
+    bot.send_message(message.chat.id, f"⚔️ <b>{message.from_user.first_name}</b> вызывает на бой <b>{message.reply_to_message.from_user.first_name}</b>!", reply_markup=markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('acc_'))
+def callback_accept(call):
+    _, p1, p2 = call.data.split('_')
+    p1, p2 = int(p1), int(p2)
+    if call.from_user.id != p2:
+        bot.answer_callback_query(call.id, "Не твоя кнопка!")
+        return
+    
+    inv1 = supabase.table('inventory').select('card_name').eq('user_id', p1).execute()
+    inv2 = supabase.table('inventory').select('card_name').eq('user_id', p2).execute()
+    if len(inv1.data) < 3 or len(inv2.data) < 3:
+        bot.answer_callback_query(call.id, "У кого-то меньше 3 карточек!", show_alert=True)
+        return
+
+    d1 = random.sample([c['card_name'] for c in inv1.data], min(10, len(inv1.data)))
+    d2 = random.sample([c['card_name'] for c in inv2.data], min(10, len(inv2.data)))
+    
+    resp = supabase.table('battles').insert({"chat_id": call.message.chat.id, "player1_id": p1, "player2_id": p2, "p1_cards": d1, "p2_cards": d2, "status": "choosing"}).execute()
+    b_id = resp.data[0]['battle_id']
+    
+    bot.edit_message_text("⚔️ <b>Бой начался!</b> Игроки получают карточки в личку.", call.message.chat.id, call.message.message_id, parse_mode='HTML')
+    send_hand(p1, d1, b_id, 1); send_hand(p2, d2, b_id, 2)
+
+def send_hand(uid, deck, b_id, p_num):
+    markup = InlineKeyboardMarkup(row_width=2)
+    for i, c in enumerate(deck):
+        markup.add(InlineKeyboardButton(text=f"◻️ {c}", callback_data=f"pick_{b_id}_{p_num}_{i}"))
+    try: bot.send_message(uid, "🃏 Выбери 3 карточки:", reply_markup=markup)
+    except: bot.send_message(ALLOWED_CHAT_ID, f"Игрок {uid} не нажал Start в личке!")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('pick_'))
+def callback_pick(call):
+    _, b_id, p_num, c_idx = call.data.split('_')
+    b_id, p_num, c_idx = int(b_id), int(p_num), int(c_idx)
+    b = supabase.table('battles').select('*').eq('battle_id', b_id).execute().data[0]
+    if (p_num == 1 and call.from_user.id != b['player1_id']) or (p_num == 2 and call.from_user.id != b['player2_id']):
+        bot.answer_callback_query(call.id, "Не твои карточки!")
+        return
+    hand_key, deck_key = f'p{p_num}_hand', f'p{p_num}_cards'
+    hand, deck = b[hand_key], b[deck_key]
+    card = deck[c_idx]
+    if card in hand:
+        hand.remove(card)
+    else:
+        if len(hand) >= 3:
+            bot.answer_callback_query(call.id, "Уже 3 карточки!")
+            return
+        hand.append(card)
+    supabase.table('battles').update({hand_key: hand}).eq('battle_id', b_id).execute()
+    
+    markup = InlineKeyboardMarkup(row_width=2)
+    for i, c in enumerate(deck):
+        markup.add(InlineKeyboardButton(text=f"{'✅' if c in hand else '◻️'} {c}", callback_data=f"pick_{b_id}_{p_num}_{i}"))
+    if len(hand) == 3:
+        markup.add(InlineKeyboardButton(text="🔥 В БОЙ", callback_data=f"rdy_{b_id}_{p_num}"))
+    bot.edit_message_text("🃏 Выбери 3 карточки:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('rdy_'))
+def callback_ready(call):
+    _, b_id, p_num = call.data.split('_')
+    b_id, p_num = int(b_id), int(p_num)
+    supabase.table('battles').update({f"p{p_num}_ready": True}).eq('battle_id', b_id).execute()
+    b = supabase.table('battles').select('*').eq('battle_id', b_id).execute().data[0]
+    bot.edit_message_text("⏳ Ждем соперника...", call.message.chat.id, call.message.message_id)
+    if b['p1_ready'] and b['p2_ready']:
+        start_round(b_id, b['chat_id'], 1, b['p1_hand'], b['p2_hand'])
+
+def start_round(b_id, chat_id, r_num, hand1, hand2):
+    stat = random.choice(["Жирность", "Выгодность", "Культурность"])
+    supabase.table('battles').update({"current_round": r_num, "p1_choice": None, "p2_choice": None}).eq('battle_id', b_id).execute()
+    bot.send_message(chat_id, f"⚔️ <b>Раунд {r_num}!</b>\nСравниваем: <b>{stat}</b>.\nЖдем выбор игроков...", parse_mode='HTML')
+    
+    markup = InlineKeyboardMarkup()
+    for c in hand1: markup.add(InlineKeyboardButton(text=c, callback_data=f"rch_{b_id}_1_{c}"))
+    try: bot.send_message(supabase.table('battles').select('player1_id').eq('battle_id', b_id).execute().data[0]['player1_id'], f"Раунд {r_num}: выбери карточку ({stat})", reply_markup=markup)
+    except: pass
+
+    markup = InlineKeyboardMarkup()
+    for c in hand2: markup.add(InlineKeyboardButton(text=c, callback_data=f"rch_{b_id}_2_{c}"))
+    try: bot.send_message(supabase.table('battles').select('player2_id').eq('battle_id', b_id).execute().data[0]['player2_id'], f"Раунд {r_num}: выбери карточку ({stat})", reply_markup=markup)
+    except: pass
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('rch_'))
+def callback_round_choice(call):
+    _, b_id, p_num, card = call.data.split('_', 3)
+    b_id, p_num = int(b_id), int(p_num)
+    b = supabase.table('battles').select('*').eq('battle_id', b_id).execute().data[0]
+    supabase.table('battles').update({f"p{p_num}_choice": card}).eq('battle_id', b_id).execute()
+    bot.edit_message_text(f"Ты выбрал: <b>{card}</b>. Ждем...", call.message.chat.id, call.message.message_id, parse_mode='HTML')
+    if b[f"p{3-p_num}_choice"]: # Если второй уже выбрал
+        resolve_round(b_id, b['chat_id'])
+
+def resolve_round(b_id, chat_id):
+    b = supabase.table('battles').select('*').eq('battle_id', b_id).execute().data[0]
+    stat = random.choice(["Жирность", "Выгодность", "Культурность"]) # Упрощенно берем рандом снова
+    all_c = cards_nothing + cards_common + cards_unusual + cards_heroic + cards_legendary + cards_impossible + [TIME_CARD]
+    
+    def get_val(uid, c_name, stat):
+        inv = supabase.table('inventory').select('*').eq('user_id', uid).eq('card_name', c_name).execute().data[0]
+        base = next(c for c in all_c if c['name'] == c_name)
+        key = 'fat' if stat == "Жирность" else 'profit' if stat == "Выгодность" else 'culture'
+        return base[key] + inv[f'{key}_bonus']
+
+    v1 = get_val(b['player1_id'], b['p1_choice'], stat)
+    v2 = get_val(b['player2_id'], b['p2_choice'], stat)
+    
+    res = f"<b>Раунд {b['current_round']} ({stat}):</b>\nИгрок 1: {v1} | Игрок 2: {v2}\n"
+    w1, w2 = b['p1_wins'], b['p2_wins']
+    if v1 > v2: w1 += 1; res += "🏆 Победил Игрок 1!"
+    elif v2 > v1: w2 += 1; res += "🏆 Победил Игрок 2!"
+    else: res += "🤝 Ничья!"
+    
+    supabase.table('battles').update({"p1_wins": w1, "p2_wins": w2}).eq('battle_id', b_id).execute()
+    bot.send_message(chat_id, res, parse_mode='HTML')
+
+    if w1 >= 2 or w2 >= 2 or b['current_round'] >= 3:
+        # Конец боя, логика удаления и прокачки
+        bot.send_message(chat_id, f"🏁 <b>Бой окончен!</b> Счет {w1}:{w2}.", parse_mode='HTML')
+    else:
+        start_round(b_id, chat_id, b['current_round'] + 1, b['p1_hand'], b['p2_hand'])
 
 # ==================== ЗАПУСК ====================
 if __name__ == "__main__":
