@@ -235,6 +235,7 @@ def cmd_start(message):
 
 # ==================== СИСТЕМА PVP БОЕВ (ЭТАП 1) ====================
 ALLOWED_CHAT_ID = -1002541291432
+
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
     if message.chat.id != ALLOWED_CHAT_ID:
@@ -244,30 +245,32 @@ def cmd_battle(message):
     challenger_id = message.from_user.id
     challenger_name = message.from_user.first_name
     enemy_id = None
-    enemy_username = None
+    enemy_name = None
 
     # ПРОВЕРКА 1: Если это ответ (Reply) на сообщение
     if message.reply_to_message:
+        # Если сообщение отправлено от имени канала, from_user может быть None
+        if message.reply_to_message.from_user is None:
+            bot.reply_to(message, "Я не могу вызвать на бой канал, хуйня.")
+            return
+            
         enemy_id = message.reply_to_message.from_user.id
-        # Получаем юзернейм, если он есть (для красоты), иначе берем имя
-        enemy_username = message.reply_to_message.from_user.username or message.reply_to_message.from_user.first_name
+        enemy_name = message.reply_to_message.from_user.first_name
         
         # Нельзя вызвать самого себя
         if enemy_id == challenger_id:
-            bot.reply_to(message, "Ты совсем долбоёб? Сам с собой воевать собрался?")
+            bot.reply_to(message, "Ты че, ебанутый? Сам с собой воевать собрался?")
             return
 
     # ПРОВЕРКА 2: Если написан текст /battle @username
     else:
         parts = message.text.split()
         if len(parts) < 2 or not parts[1].startswith('@'):
-            bot.reply_to(message, "Чтобы вызвать на свинобой, напиши: `/battle @username`\nИли ответь на сообщение и напиши `/battle`.", parse_mode='Markdown')
+            bot.reply_to(message, "Чтобы вызвать на свинобой, ответь на сообщение человека и напиши `/battle`.", parse_mode='Markdown')
             return
-        
-        enemy_username = parts[1][1:]
-        # Нам нужен ID, но по нику мы его не узнаем (если он не писал боту). 
-        # Поэтому, если вызвали по нику, мы будем искать его ID в базе (если он когда-либо получал карточки).
-        # Но проще и надежнее использовать только Reply.
+        else:
+            bot.reply_to(message, "Хуесосина, ответь на сообщение, чтобы вызвать на свинобой.")
+            return
 
     # Проверяем карточки у вызывающего
     inv_resp = supabase.table('inventory').select('card_name').eq('user_id', challenger_id).execute()
@@ -275,35 +278,29 @@ def cmd_battle(message):
         bot.reply_to(message, f"{challenger_name}, Хахаха, ты ебаная нищета! Напиши «свин», чтобы получить пизды, или иди нахуй.")
         return
 
-    # Формируем кнопку (если через reply, то передаем ID врага)
+    # Формируем кнопку
     markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"accept_battle_{challenger_id}_{enemy_id}"),
+        InlineKeyboardButton(text="❌ Я питух", callback_data=f"decline_battle_{challenger_id}")
+    )
     
-    # Если мы знаем ID врага (через Reply)
-    if enemy_id:
-        markup.add(
-            InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"accept_battle_{challenger_id}_{enemy_id}"),
-            InlineKeyboardButton(text="❌ Я питух", callback_data=f"decline_battle_{challenger_id}")
-        )
-        text = f"⚔️ <b>{challenger_name}</b> вызывает на смертельный бой <b>{enemy_username}</b>!\n\nНа кону стоит твоё очко. Согласен?"
-        bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
-    
-    else:
-        # Если вызвали просто по @username (без Reply), то мы не знаем его ID. 
-        # В таком случае бот не может проверить, нажал ли он кнопку. 
-        bot.reply_to(message, "Хуесосина, ответь на сообщение, чтобы вызвать на свинобой.")
+    text = f"⚔️ <b>{challenger_name}</b> вызывает на смертельный бой <b>{enemy_name}</b>!\n\nНа кону стоит твоё очко. Согласен?"
+    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='HTML')
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('accept_battle_'))
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('accept_battle_'))
 def callback_accept_battle(call):
+    # Парсим данные безопасно
     data_part = call.data[14:] 
     challenger_id_str, enemy_id_str = data_part.split('_', 1)
     challenger_id = int(challenger_id_str)
     enemy_id = int(enemy_id_str)
     
-    # ПРОВЕРКА: Сравниваем ID того, кто нажал, с ID того, кого вызвали
+    # Проверяем, что нажал именно тот, кого вызвали
     if call.from_user.id != enemy_id:
         bot.answer_callback_query(call.id, "Убери свои ебаные сардельки!", show_alert=True)
         return
-    # ... дальше код без изменений ...
     
     inv_resp = supabase.table('inventory').select('card_name').eq('user_id', call.from_user.id).execute()
     if not inv_resp.data:
@@ -314,8 +311,6 @@ def callback_accept_battle(call):
         f"⚔️ <b>Чмо не зассало, газ!</b>\n\nПидорас {challenger_id} и Пидорас {call.from_user.id} готовы к свинобойне.\n\nСейчас лудка раздаст вам свиней.",
         call.message.chat.id, call.message.message_id, parse_mode='HTML'
     )
-
-    # Здесь в будущем (Этап 2) мы вызовем функцию старта боя
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('decline_battle_'))
 def callback_decline_battle(call):
