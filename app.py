@@ -271,9 +271,9 @@ def handle_text(message):
 # ==================== PVP БОИ ====================
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
-    if message.chat.id != ALLOWED_CHAT_ID:
-        bot.reply_to(message, "Свинобойня только в специально отведенной бане! Иди нахуй пидрила.")
-        return
+    #if message.chat.id != ALLOWED_CHAT_ID:
+        #bot.reply_to(message, "Свинобойня только в специально отведенной бане! Иди нахуй пидрила.")
+        #return
         
     if not message.reply_to_message:
         bot.reply_to(message, "Ответь на сообщение и напиши `/battle`.", parse_mode='Markdown')
