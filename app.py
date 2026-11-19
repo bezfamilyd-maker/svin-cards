@@ -268,6 +268,8 @@ def handle_text(message):
     bot.send_photo(message.chat.id, card["photo"], caption=caption, parse_mode='HTML')
 
 # ==================== PVP БОИ ====================
+ALLOWED_CHAT_ID = -1002541291432
+
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
     if message.chat.id != ALLOWED_CHAT_ID:
