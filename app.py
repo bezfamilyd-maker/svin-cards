@@ -4,7 +4,7 @@ import time
 import datetime
 import threading
 from zoneinfo import ZoneInfo
-from flask import Flask
+from flask import Flask, request
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from supabase import create_client, Client
@@ -476,6 +476,22 @@ def finish_battle(b_id, chat_id, w1, w2):
 
 # ==================== ЗАПУСК ====================
 if __name__ == "__main__":
-    threading.Thread(target=run_flask, daemon=True).start()
-    print("🐷 Svin Cards запущен...")
-    bot.infinity_polling()
+    # ВАЖНО: Замените 'svin-cards' на реальное имя вашего сервиса на Render
+    # Оно указано в ссылке: https://svin-cards.onrender.com
+    RENDER_URL = "https://svin-cards.onrender.com" 
+    
+    # Устанавливаем вебхук для Telegram
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+
+    # Flask будет принимать сообщения от Telegram
+    @app.route(f'/{TOKEN}', methods=['POST'])
+    def getMessage():
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return "!", 200
+
+    # Запускаем Flask
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
