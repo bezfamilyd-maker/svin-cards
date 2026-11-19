@@ -269,7 +269,6 @@ def handle_text(message):
     bot.send_photo(message.chat.id, card["photo"], caption=caption, parse_mode='HTML')
 
 # ==================== PVP БОИ ====================
-ALLOWED_CHAT_ID = -1002541291432
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
     if message.chat.id != ALLOWED_CHAT_ID:
@@ -304,7 +303,7 @@ def callback_accept(call):
     inv1 = supabase.table('inventory').select('card_name').eq('user_id', p1).execute()
     inv2 = supabase.table('inventory').select('card_name').eq('user_id', p2).execute()
     if len(inv1.data) < 3 or len(inv2.data) < 3:
-        bot.answer_callback_query(call.id, "Нищета, иди нахуй! Нудно минум 3 карточки", show_alert=True)
+        bot.answer_callback_query(call.id, "Нищета, иди нахуй! Нудно минимум 3 карточки", show_alert=True)
         return
 
     d1 = random.sample([c['card_name'] for c in inv1.data], min(10, len(inv1.data)))
@@ -431,7 +430,6 @@ def finish_battle(b_id, chat_id, w1, w2):
         bot.send_message(chat_id, f"🏁 <b>Свинобойня окончена!</b> Счет {w1}:{w2}. Победил {winner_id}!", parse_mode='HTML')
 
         # 1. Удаляем самую сильную карточку проигравшего
-        loser_inv = supabase.table('inventory').select('*').eq('user_id', loser_id).in_('card_name', b['p1_hand'] + b['p2_hand']).execute()
         # (Мы берем только карточки из боя, которые принадлежали проигравшему)
         loser_hand = b['p1_hand'] if loser_id == b['player1_id'] else b['p2_hand']
         
