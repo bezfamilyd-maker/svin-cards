@@ -11,7 +11,6 @@ from supabase import create_client, Client
 
 # ==================== НАСТРОЙКИ ====================
 TOKEN = os.environ.get('TELEGRAM_TOKEN', '9010306241:AAH49OSX-q6U1DLjTeDshgLCJrEWrEYExfs')
-
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
@@ -274,8 +273,17 @@ def cmd_battle(message):
     if message.chat.id != ALLOWED_CHAT_ID:
         bot.reply_to(message, "Бои только в спец. чате!")
         return
-    if not message.reply_to_message or message.reply_to_message.from_user.id == message.from_user.id:
+        
+    if not message.reply_to_message:
         bot.reply_to(message, "Ответь на сообщение игрока и напиши `/battle`.", parse_mode='Markdown')
+        return
+        
+    if message.reply_to_message.from_user is None:
+        bot.reply_to(message, "Я не могу вызвать на бой анонимного админа или канал.")
+        return
+        
+    if message.reply_to_message.from_user.id == message.from_user.id:
+        bot.reply_to(message, "Сам с собой воевать собрался?")
         return
     
     enemy_id = message.reply_to_message.from_user.id
@@ -352,7 +360,10 @@ def callback_ready(call):
 
 def start_round(b_id, chat_id, r_num, hand1, hand2):
     stat = random.choice(["Жирность", "Выгодность", "Культурность"])
-    supabase.table('battles').update({"current_round": r_num, "p1_choice": None, "p2_choice": None}).eq('battle_id', b_id).execute()
+    
+    # Сохраняем характеристику в поле status, чтобы resolve_round знал, что сравнивать
+    supabase.table('battles').update({"current_round": r_num, "status": stat, "p1_choice": None, "p2_choice": None}).eq('battle_id', b_id).execute()
+    
     bot.send_message(chat_id, f"⚔️ <b>Раунд {r_num}!</b>\nСравниваем: <b>{stat}</b>.\nЖдем выбор игроков...", parse_mode='HTML')
     
     markup = InlineKeyboardMarkup()
@@ -377,7 +388,7 @@ def callback_round_choice(call):
 
 def resolve_round(b_id, chat_id):
     b = supabase.table('battles').select('*').eq('battle_id', b_id).execute().data[0]
-    stat = random.choice(["Жирность", "Выгодность", "Культурность"]) # Упрощенно берем рандом снова
+    stat = b['status'] # Берем ту характеристику, которую сохранили в start_round
     all_c = cards_nothing + cards_common + cards_unusual + cards_heroic + cards_legendary + cards_impossible + [TIME_CARD]
     
     def get_val(uid, c_name, stat):
@@ -399,7 +410,6 @@ def resolve_round(b_id, chat_id):
     bot.send_message(chat_id, res, parse_mode='HTML')
 
     if w1 >= 2 or w2 >= 2 or b['current_round'] >= 3:
-        # Конец боя, логика удаления и прокачки
         bot.send_message(chat_id, f"🏁 <b>Бой окончен!</b> Счет {w1}:{w2}.", parse_mode='HTML')
     else:
         start_round(b_id, chat_id, b['current_round'] + 1, b['p1_hand'], b['p2_hand'])
