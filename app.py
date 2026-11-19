@@ -271,27 +271,39 @@ def handle_text(message):
 # ==================== PVP БОИ ====================
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
-    #if message.chat.id != ALLOWED_CHAT_ID:
-        #bot.reply_to(message, "Свинобойня только в специально отведенной бане! Иди нахуй пидрила.")
-        #return
+    try:
+        if message.chat.id != ALLOWED_CHAT_ID:
+            bot.reply_to(message, "Свинобойня только в специально отведенной бане! Иди нахуй пидрила.")
+            return
+            
+        if not message.reply_to_message:
+            bot.reply_to(message, "Ответь на сообщение и напиши `/battle`.", parse_mode='Markdown')
+            return
+            
+        if message.reply_to_message.from_user is None:
+            bot.reply_to(message, "Вызывай конкретного человека, долбоёб.")
+            return
+            
+        if message.reply_to_message.from_user.id == message.from_user.id:
+            bot.reply_to(message, "Сам себе дрочить собрался, еблан?")
+            return
         
-    if not message.reply_to_message:
-        bot.reply_to(message, "Ответь на сообщение и напиши `/battle`.", parse_mode='Markdown')
-        return
+        enemy_id = message.reply_to_message.from_user.id
+        markup = InlineKeyboardMarkup()
+        markup.add(
+            InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"acc_{message.from_user.id}_{enemy_id}"), 
+            InlineKeyboardButton(text="❌ Я питух", callback_data=f"dec_{message.from_user.id}")
+        )
+        bot.send_message(
+            message.chat.id, 
+            f"⚔️ <b>{message.from_user.first_name}</b> вызывает на бой <b>{message.reply_to_message.from_user.first_name}</b>!", 
+            reply_markup=markup, 
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        # Это отправит текст ошибки прямо в чат
+        bot.reply_to(message, f"⚠️ ОШИБКА В КОДЕ:\n\n{e}", parse_mode='Markdown')
         
-    if message.reply_to_message.from_user is None:
-        bot.reply_to(message, "Вызывай конкретного человека, долбоёб.")
-        return
-        
-    if message.reply_to_message.from_user.id == message.from_user.id:
-        bot.reply_to(message, "Сам себе дрочить собрался, еблан?")
-        return
-    
-    enemy_id = message.reply_to_message.from_user.id
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(text="✅ Газ ехала", callback_data=f"acc_{message.from_user.id}_{enemy_id}"), InlineKeyboardButton(text="❌ Я питух", callback_data=f"dec_{message.from_user.id}"))
-    bot.send_message(message.chat.id, f"⚔️ <b>{message.from_user.first_name}</b> вызывает на бой <b>{message.reply_to_message.from_user.first_name}</b>!", reply_markup=markup, parse_mode='HTML')
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith('acc_'))
 def callback_accept(call):
     _, p1, p2 = call.data.split('_')
