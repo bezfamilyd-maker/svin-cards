@@ -272,10 +272,10 @@ def handle_text(message):
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
     try:
-        if message.chat.id != ALLOWED_CHAT_ID:
-            bot.reply_to(message, "Свинобойня только в специально отведенной бане! Иди нахуй пидрила.")
+        # Проверяем, есть ли текст сообщения
+        if not message.text:
             return
-            
+
         if not message.reply_to_message:
             bot.reply_to(message, "Ответь на сообщение и напиши `/battle`.", parse_mode='Markdown')
             return
@@ -301,7 +301,7 @@ def cmd_battle(message):
             parse_mode='HTML'
         )
     except Exception as e:
-        # Это отправит текст ошибки прямо в чат
+        # Если произошла ошибка, бот напишет её прямо в чат
         bot.reply_to(message, f"⚠️ ОШИБКА В КОДЕ:\n\n{e}", parse_mode='Markdown')
         
 @bot.callback_query_handler(func=lambda call: call.data.startswith('acc_'))
