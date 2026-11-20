@@ -482,20 +482,30 @@ def finish_battle(b_id, chat_id, w1, w2):
 # ==================== ЗАПУСК ====================
 if __name__ == "__main__":
     RENDER_URL = "https://svin-cards.onrender.com" 
+    
+    # Удаляем старый вебхук (на всякий случай)
     bot.remove_webhook()
+    
+    # Устанавливаем новый
     bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
 
+    # Встроенный обработчик Webhook от telebot
+    # Он автоматически парсит JSON и передает его в бота
     @app.route(f'/{TOKEN}', methods=['POST'])
-    def getMessage():
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        
-        # Логируем каждое сообщение, чтобы видеть, что приходит
-        if update.message:
-            print(f"ПРИШЛО: {update.message.text}")
+    def webhook():
+        if request.headers.get('content-type') == 'application/json':
+            json_string = request.get_data().decode('utf-8')
+            update = telebot.types.Update.de_json(json_string)
             
-        bot.process_new_updates([update])
-        return "!", 200
+            # Логируем, чтобы точно видеть, что пришло
+            if update.message:
+                print(f"ПРИШЛО: {update.message.text}")
+            
+            bot.process_new_updates([update])
+            return '', 200
+        else:
+            return 'Invalid content type', 403
 
+    # Запускаем Flask
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port, threaded=True)
