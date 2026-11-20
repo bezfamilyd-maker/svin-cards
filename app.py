@@ -272,7 +272,6 @@ def handle_text(message):
 @bot.message_handler(commands=['battle'])
 def cmd_battle(message):
     try:
-        # Небольшая проверка на случай, если текст не распознался
         if not message.text:
             return
 
@@ -301,9 +300,9 @@ def cmd_battle(message):
             parse_mode='HTML'
         )
     except Exception as e:
-        # Если произойдет ошибка, бот пришлет её в чат
+        # Отправляем текст ошибки прямо в чат
         bot.reply_to(message, f"⚠️ ОШИБКА В КОДЕ:\n\n{e}", parse_mode='Markdown')
-        
+         
 @bot.callback_query_handler(func=lambda call: call.data.startswith('acc_'))
 def callback_accept(call):
     _, p1, p2 = call.data.split('_')
